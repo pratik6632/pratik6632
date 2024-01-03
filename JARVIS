@@ -1,0 +1,153 @@
+import pyttsx3
+import speech_recognition as sr
+import datetime
+import wikipedia
+import webbrowser
+import smtplib
+
+
+engine = pyttsx3.init('sapi5')
+voices = engine.getProperty('voices')
+engine.setProperty('voice', voices[0].id)
+
+
+def speak(audio: object) -> object:
+    engine.say(audio)
+    engine.runAndWait()
+
+
+def wishMe():
+    hour = datetime.datetime.now().hour
+    if 0 <= hour < 12:
+        speak("Good Morning!")
+    elif 12 <= hour < 18:
+        speak("Good Afternoon!")
+    else:
+        speak("Good Evening!")
+
+    speak( "jay Siya raam, I am jarvis, please tell me how may i help you?" )
+def takeCommand():
+    # It takes microphone input from the user and returns string output
+    r = sr.Recognizer()
+    with sr.Microphone() as source:
+        print("Listening...")
+        r.pause_threshold = 1
+        audio = r.listen(source)
+
+    try:
+        print("Recognizing...")
+        query = r.recognize_google(audio, language='en-in')
+        print(f"User said: {query}\n")
+
+
+    except Exception as e:
+        print("Say that again, please...")
+        return "None"
+    return query
+
+
+def sendEmail(to, content):
+    server = smtplib.SMTP('smtp.gmail.com', 587)
+    server.ehlo()
+    server.starttls()
+    server.login('sprathamesh336@gmail.com', 'ps&130305')
+    server.sendmail('sprathamesh336@gmail.com', to, content)
+    server.close()
+
+
+if _name_ == "_main_":
+    wishMe()
+    while True:
+        query = takeCommand().lower()
+
+        # Logic for executing tasks based on query
+        if 'wikipedia' in query:
+            speak('Searching Wikipedia...')
+            query = query.replace("wikipedia", "")
+            results = wikipedia.summary(query, sentences=2)
+            speak("According to Wikipedia")
+            print(results)
+            speak(results)
+
+
+
+        elif 'jay siyaram' in query:
+            speak("JAY Siya Raam")
+
+
+        elif 'open youtube' in query:
+            speak("opening youtube,sir")
+
+            webbrowser.open("https://www.youtube.com/")
+
+        elif 'open google' in query:
+            speak("opening google,sir")
+
+            webbrowser.open("https://www.google.com/")
+
+        elif 'open whatsapp' in query:
+            speak("opening whatsapp,sir")
+            webbrowser.open("whatsapp.com")
+
+
+        elif 'the time' in query:
+            strTime = datetime.datetime.now().strftime("%H:%M:%S")
+            speak(f"Sir, the time is {strTime}")
+
+        elif 'open chat gpt' in query:
+            speak("opening chat gpt,sir")
+
+            webbrowser.open("openai.com")
+
+
+        elif 'email to pratik' in query:
+            try:
+                speak("What should I say?")
+                content = takeCommand()
+                to = "pratikjadhav6632@gmail.com"
+                sendEmail(to, content)
+                speak("Email has been sent!")
+
+
+            except Exception as e:
+                print(e)
+                speak("Sorry sir, I am not able to send this email")
+
+        elif 'open flipkart' in query:
+            speak("opening flipkart ,sir")
+
+            webbrowser.open("flipkart.com")
+
+        elif 'open amazon' in query:
+            speak("opening amazon,sir")
+
+            webbrowser.open("amazon.com")
+
+        elif 'open twitter' in query:
+            speak("opening twitter,sir")
+
+            webbrowser.open("twitter.com")
+
+
+        elif 'how are you jarvis' in query:
+            speak("I am doing well,thanks!How about you?")
+
+
+        elif 'jarvis tell me about yourself' in query:
+            speak("I am Artificial assistance, my name is Jarvis and i am able to do some specific task, which are added in my code by TEAM jrs , inspiring iron man movie")
+
+        elif 'open firebolt' in query:
+            speak("opening firebolt")
+            webbrowser.open("firebolt.com")
+
+        elif 'search' in query:
+
+            speak("What do you want to search on Google?")
+            search_query = takeCommand()
+            webbrowser.open(f"https://www.google.com/search?q={search_query}")
+
+        elif 'exit' in query or 'bye' in query:
+            speak("Goodbye sir ! Have a great day!")
+            break
+        else:
+            speak("Sorry, I couldn't understand that command. Please try again.")
