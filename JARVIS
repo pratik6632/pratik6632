@@ -4,17 +4,76 @@ import datetime
 import wikipedia
 import webbrowser
 import smtplib
-
+import os
+import sys
+import pyautogui
+import platform
+import requests  # Required for weather information
+import pyjokes
+import spotipy
+from spotipy.oauth2 import SpotifyOAuth
 
 engine = pyttsx3.init('sapi5')
 voices = engine.getProperty('voices')
 engine.setProperty('voice', voices[0].id)
 
 
-def speak(audio: object) -> object:
+SPOTIPY_CLIENT_ID = '8ca063e3e60148e6b3c7305e4f64c26c'
+SPOTIPY_CLIENT_SECRET = '4f2a6edd6ace407496b1b105a765a133'
+SPOTIPY_REDIRECT_URI = 'https://open.spotify.com/user/31tadgcysb55a5osy3abzcrgjqk4?code=AQAoFKllwsrA5UsBVT-3geJSVdpwjjxcen-DlttTbmXINOIFiZLjE6FJCjIqNW8032VvtnMfzeVmQcqLMb94qj8CsicoKCilcvDAwpAbxviZhJL1DGpT92V1sS1aBDSCdtWHAwkIg6Bt-GZ9YoLz72q72iumhxrUtXOysfUsseDy2jCOZsZe61mI6pHwVPAXysswiGn-fEc9S70QPsrbxfquEnIDrG6daeklJtTlojpzHht5vc3DeTZsfDNjnQCWsrDhdq4OAfuIYFIt6ZbH2babXgE'
+
+
+# Default language
+current_language = 'en-IN'
+previous_task = None
+
+
+sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=SPOTIPY_CLIENT_ID,
+                                               client_secret=SPOTIPY_CLIENT_SECRET,
+                                               redirect_uri=SPOTIPY_REDIRECT_URI,
+                                               scope='user-read-playback-state,user-modify-playback-state'))
+
+def speak(audio):
     engine.say(audio)
     engine.runAndWait()
 
+def play_music():
+    # Implement logic to play music using Spotify or another music service
+    # For example, you can use the Spotipy library to control Spotify playback
+    try:
+        sp.start_playback()
+        speak("Music playback started.")
+    except Exception as e:
+        speak("Sorry, I encountered an error while starting music playback.")
+
+def pause_music():
+    # Implement logic to pause music using Spotify or another music service
+    try:
+        sp.pause_playback()
+        speak("Music playback paused.")
+    except Exception as e:
+        speak("Sorry, I encountered an error while pausing music playback.")
+
+def next_track():
+    # Implement logic to play the next track using Spotify or another music service
+    try:
+        sp.next_track()
+        speak("Playing the next track.")
+    except Exception as e:
+        speak("Sorry, I encountered an error while playing the next track.")
+
+def previous_track():
+    # Implement logic to play the previous track using Spotify or another music service
+    try:
+        sp.previous_track()
+        speak("Playing the previous track.")
+    except Exception as e:
+        speak("Sorry, I encountered an error while playing the previous track.")
+
+def change_language(new_language):
+    global current_language
+    current_language = new_language
+    speak(f"Language changed to {current_language}")
 
 def wishMe():
     hour = datetime.datetime.now().hour
@@ -25,129 +84,176 @@ def wishMe():
     else:
         speak("Good Evening!")
 
-    speak( "jay Siya raam, I am jarvis, please tell me how may i help you?" )
+    speak("Jay Siya Raam, I am Jarvis, please tell me how may I help you?")
+
+
 def takeCommand():
-    # It takes microphone input from the user and returns string output
     r = sr.Recognizer()
+    
     with sr.Microphone() as source:
         print("Listening...")
         r.pause_threshold = 1
+        
         audio = r.listen(source)
 
     try:
         print("Recognizing...")
-        query = r.recognize_google(audio, language='en-in')
+        query = r.recognize_google(audio, language=current_language)
         print(f"User said: {query}\n")
 
+        if 'change language' in query:
+            speak("Sure, which language would you like to switch to?")
+            new_language = takeCommand().lower()
+            if 'hindi' in new_language:
+                change_language('hi-IN')
+            elif 'marathi' in new_language:
+                change_language('mr-IN')
+            elif 'english' in new_language:
+                change_language('en-IN')
+            else:
+                speak("Sorry, I didn't understand the language. Language remains unchanged.")
+                
+        return query
 
     except Exception as e:
         print("Say that again, please...")
         return "None"
-    return query
+
+def new_func1(r):
+    return r
+
+def new_func(r):
+    r.pause_threshold = 1
 
 
 def sendEmail(to, content):
     server = smtplib.SMTP('smtp.gmail.com', 587)
     server.ehlo()
     server.starttls()
-    server.login('user@gmail.com', 'YOUR PASSWORD')
-    server.sendmail('user@gmail.com', to, content)
+    server.login('sprathamesh336@gmail.com', 'ps&130305')
+    server.sendmail('sprathamesh336@gmail.com', to, content)
     server.close()
 
 
-if _name_ == "_main_":
+def get_weather_info(city):
+    api_key = 'e4158310bd224f0891e140944241401'
+    base_url = f'http://api.weatherapi.com/v1/current.json?key={api_key}&q={city}'
+    response = requests.get(base_url)
+    weather_data = response.json()
+
+    if 'error' in weather_data:
+        speak(f"Error: {weather_data['error']['message']}")
+    else:
+        try:
+            current_data = weather_data['current']
+            temperature = current_data.get('temp_c')
+            condition = current_data.get('condition', {}).get('text')
+            
+            if temperature is not None and condition is not None:
+                speak(f"The current temperature in {city} is {temperature} degrees Celsius with {condition}.")
+            else:
+                speak(f"Unable to retrieve complete weather information for {city}. Please try again.")
+        except KeyError:
+            speak(f"Unable to retrieve weather information for {city}. Please try again.")
+
+
+
+
+
+def tell_joke():
+    joke = pyjokes.get_joke(language='en', category='neutral')
+    speak(joke)
+
+
+def perform_task(query):
+    global previous_task
+
+    if 'search' in query:
+        speak('Searching Wikipedia...')
+        query = query.replace("wikipedia", "")
+        results = wikipedia.summary(query, sentences=2)
+        speak("According to Wikipedia")
+        print(results)
+        speak(results)
+        previous_task = None  # Clear previous task
+
+    elif 'tell me a joke' in query or 'joke' in query:
+        tell_joke()
+        previous_task = None  # Clear previous task
+
+    elif 'jay siyaram' in query:
+        speak("JAY Siya Raam")
+        previous_task = None  # Clear previous task
+
+    elif 'open youtube' in query:
+        speak("opening YouTube, sir")
+        webbrowser.open("https://www.youtube.com/")
+        previous_task = None  # Clear previous task
+
+    elif 'open google' in query:
+        speak("opening Google, sir")
+        webbrowser.open("https://www.google.com/")
+        previous_task = None  # Clear previous task
+
+    elif 'google search' in query:
+        search_query = query.replace("google search", "").strip()
+        speak(f"Searching Google for {search_query}")
+        webbrowser.open(f"https://www.google.com/search?q={search_query}")
+        previous_task = query  # Save previous task
+
+    elif 'go back' in query:
+        speak("Going back to code screen.")
+        # Restart the script
+        python = sys.executable
+        os.execl(python, python, *sys.argv)
+
+    elif 'exit' in query or 'bye' in query:
+        speak("Goodbye sir! Have a great day!")
+        exit()
+
+    elif 'lock my laptop' in query:
+        speak("Locking your laptop.")
+        lock_screen()
+
+    elif 'unlock my laptop' in query:
+        speak("Unlocking your laptop.")
+        # Provide instructions on how to unlock (e.g., enter password)
+
+    elif 'weather condition' in query:
+        speak("Sure, which city would you like the weather information for?")
+        city = takeCommand().lower()
+        get_weather_info(city)
+
+         # Music Control
+    elif 'play music' in query:
+        play_music()
+        previous_task = None
+
+    elif 'pause music' in query:
+        pause_music()
+        previous_task = None
+
+    elif 'next track' in query:
+        next_track()
+        previous_task = None
+
+    elif 'previous track' in query:
+        previous_track()
+        previous_task = None
+
+    # Add more tasks as needed...
+
+def lock_screen():
+    system_platform = platform.system().lower()
+    
+    if system_platform == 'windows':
+        pyautogui.hotkey("winkey", "l")  # Press WinKey + L to lock the screen
+        print("Screen locked.")
+    else:
+        print("Locking the screen is not supported on this platform.")
+
+if __name__ == "__main__":
     wishMe()
     while True:
-        query = takeCommand().lower()
-
-        # Logic for executing tasks based on query
-        if 'wikipedia' in query:
-            speak('Searching Wikipedia...')
-            query = query.replace("wikipedia", "")
-            results = wikipedia.summary(query, sentences=2)
-            speak("According to Wikipedia")
-            print(results)
-            speak(results)
-
-
-
-        elif 'jay siyaram' in query:
-            speak("JAY Siya Raam")
-
-
-        elif 'open youtube' in query:
-            speak("opening youtube,sir")
-
-            webbrowser.open("https://www.youtube.com/")
-
-        elif 'open google' in query:
-            speak("opening google,sir")
-
-            webbrowser.open("https://www.google.com/")
-
-        elif 'open whatsapp' in query:
-            speak("opening whatsapp,sir")
-            webbrowser.open("whatsapp.com")
-
-
-        elif 'the time' in query:
-            strTime = datetime.datetime.now().strftime("%H:%M:%S")
-            speak(f"Sir, the time is {strTime}")
-
-        elif 'open chat gpt' in query:
-            speak("opening chat gpt,sir")
-
-            webbrowser.open("openai.com")
-
-
-        elif 'email to pratik' in query:
-            try:
-                speak("What should I say?")
-                content = takeCommand()
-                to = "user@gmail.com"
-                sendEmail(to, content)
-                speak("Email has been sent!")
-
-
-            except Exception as e:
-                print(e)
-                speak("Sorry sir, I am not able to send this email")
-
-        elif 'open flipkart' in query:
-            speak("opening flipkart ,sir")
-
-            webbrowser.open("flipkart.com")
-
-        elif 'open amazon' in query:
-            speak("opening amazon,sir")
-
-            webbrowser.open("amazon.com")
-
-        elif 'open twitter' in query:
-            speak("opening twitter,sir")
-
-            webbrowser.open("twitter.com")
-
-
-        elif 'how are you jarvis' in query:
-            speak("I am doing well,thanks!How about you?")
-
-
-        elif 'jarvis tell me about yourself' in query:
-            speak("I am Artificial assistance, my name is Jarvis and i am able to do some specific task, which are added in my code by TEAM jrs , inspiring iron man movie")
-
-        elif 'open firebolt' in query:
-            speak("opening firebolt")
-            webbrowser.open("firebolt.com")
-
-        elif 'search' in query:
-
-            speak("What do you want to search on Google?")
-            search_query = takeCommand()
-            webbrowser.open(f"https://www.google.com/search?q={search_query}")
-
-        elif 'exit' in query or 'bye' in query:
-            speak("Goodbye sir ! Have a great day!")
-            break
-        else:
-            speak("Sorry, I couldn't understand that command. Please try again.")
+        user_query = takeCommand().lower()
+        perform_task(user_query)
